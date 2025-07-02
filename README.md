@@ -101,6 +101,49 @@ chat-jee/
 
 ---
 
+## 🚀 Future Add-ons for *Chat Jee*
+
+### 🧠 1. **Voice Input & Output**
+- Let users **ask questions via microphone**
+- Read the AI's response out loud using **Text-to-Speech (TTS)**
+- 📦 Libraries: `speechrecognition`, `gTTS`, `pyttsx3`
+
+### 📝 2. **Math Equation Support (LaTeX Renderer)**
+- Support math questions with clean **LaTeX-style rendering**
+- Let users write: `\int x^2 dx` and show it beautifully in UI
+- 📦 Use: `MathJax`, Streamlit's `st.latex()`
+
+### 🧾 3. **In-App MCQ Practice Mode**
+- Add a quiz/practice mode with **multiple-choice questions**
+- Include timer ⏱, progress bar, and performance stats
+
+### 🧠 4. **Offline Mode with Local LLM (e.g., Mistral, LLaMA)**
+- Allow the bot to run **without internet**, using a local model via `transformers`
+- 📦 Hugging Face + quantized LLM
+
+### 📚 5. **OCR Support for Handwritten Notes**
+- Allow users to upload **scanned handwritten notes or images**
+- Extract text using OCR (Optical Character Recognition)
+- 📦 Use: `pytesseract`, `opencv-python`
+
+### 📈 6. **Smart Progress Tracker**
+- Let users **track topics covered**, weak areas, and generate weekly reports
+- Show charts using `plotly` or `matplotlib`
+
+### 📅 7. **Custom Study Planner Generator**
+- Generate a **JEE-focused study plan** based on syllabus, remaining time, and weak topics
+
+### 🧩 8. **Interactive Concept Maps**
+- Show visual maps of linked topics (e.g., Thermodynamics → Laws → Applications)
+- Great for **revising complex chapters**
+
+### 🌐 9. **Multilingual Support**
+- Answer questions in **Hindi or Hinglish** for better accessibility
+
+### 💬 10. **Telegram/WhatsApp Bot Integration**
+- Let users chat with **Chat Jee on mobile** directly from Telegram or WhatsApp
+---
+
 ## 📬 Contact
 
 Made with ❤️ by **Shriyansh Singh Rathore**
