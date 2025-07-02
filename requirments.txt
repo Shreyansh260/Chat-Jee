@@ -1,0 +1,5 @@
+streamlit>=1.30.0
+PyPDF2>=3.0.1
+google-generativeai>=0.3.2  # Required for Google Generative AI integration
+requests>=2.31.0
+# Note: The version numbers are set to ensure compatibility with the code.
