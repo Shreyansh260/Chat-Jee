@@ -1,12 +1,21 @@
 import google.generativeai as genai
 import os
-from dotenv import load_dotenv
 
-# Load environment variables from .env file
-load_dotenv()
+def get_api_key():
+    """Get API key from Streamlit secrets only"""
+    try:
+        import streamlit as st
+        return st.secrets["GEMINI_API_KEY"]
+    except Exception as e:
+        print(f"Error accessing Streamlit secrets: {e}")
+        return None
 
-# Configure with your Gemini API key from .env file
-genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
+# Configure with your Gemini API key
+api_key = get_api_key()
+if api_key:
+    genai.configure(api_key=api_key)
+else:
+    print("Warning: No API key found. Please set GEMINI_API_KEY in .env file or Streamlit secrets.")
 
 # Select your model
 model = genai.GenerativeModel("models/gemini-1.5-pro")
@@ -40,8 +49,11 @@ def chat_with_gemini():
 
 if __name__ == "__main__":
     # Check if API key is loaded
-    if not os.getenv("GEMINI_API_KEY"):
-        print("Error: GEMINI_API_KEY not found in .env file")
-        print("Please create a .env file with your API key")
+    if not get_api_key():
+        print("Error: GEMINI_API_KEY not found in Streamlit secrets")
+        print("Please set GEMINI_API_KEY in Streamlit secrets:")
+        print("1. Go to your Streamlit app settings")
+        print("2. Navigate to 'Secrets' section")
+        print("3. Add: GEMINI_API_KEY = \"your_api_key_here\"")
     else:
         chat_with_gemini()
