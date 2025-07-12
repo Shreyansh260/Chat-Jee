@@ -1,17 +1,7 @@
-import os
-from dotenv import load_dotenv
 import google.generativeai as genai
 
-# Load the .env file
-load_dotenv()
-
-# Access the Gemini API key from the environment variable
-api_key = os.getenv("GEMINI_API_KEY")
-if not api_key:
-    raise ValueError("GEMINI_API_KEY not found in .env file")
-
-# Configure Gemini with the API key
-genai.configure(api_key=api_key)
+# Configure with your Gemini API key
+genai.configure(api_key="AIzaSyBydO1j5gFvt_rxBsEqObAfQ5BlvENtW0o")
 
 # Select your model
 model = genai.GenerativeModel("models/gemini-1.5-pro")
@@ -26,7 +16,7 @@ def chat_with_gemini():
             print("Goodbye!")
             break
         
-        # Prepare conversation context
+        # Prepare conversation context (optional, for simple context)
         conversation_history.append(f"User: {user_input}")
         prompt = "\n".join(conversation_history) + "\nAssistant:"
 
@@ -36,7 +26,7 @@ def chat_with_gemini():
 
         print("Bot:", bot_reply)
 
-        # Save bot reply to history
+        # Save bot reply to history to keep context
         conversation_history.append(f"Assistant: {bot_reply}")
 
 if __name__ == "__main__":
