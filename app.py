@@ -29,7 +29,7 @@ st.set_page_config(
     page_title="Chat Jee - JEE Assistant",
     page_icon="🎓",
     layout="wide",
-    initial_sidebar_state="collapsed",
+    initial_sidebar_state="expanded",
     menu_items={
         'Get Help': 'https://github.com/Shreyansh260/chat-jee',
         'Report a bug': 'https://github.com/Shreyansh260/chat-jee/issues',
