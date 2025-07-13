@@ -1,16 +1,27 @@
 import streamlit as st
 from PyPDF2 import PdfReader
-import io
-import time
-from typing import List, Dict
 import hashlib
+import time
+import os
+import re
+from typing import Dict, List, Optional
+from datetime import datetime
+import logging
 
-# Import your Gemini AI module
+# Configure logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
+# Import your Gemini AI module with better error handling
 try:
     from Gemine_AI import model
     GEMINI_AVAILABLE = True
-except ImportError:
-    st.error("❌ Gemine_AI.py file not found! Please ensure it's in the same directory.")
+    logger.info("Gemini AI module loaded successfully")
+except ImportError as e:
+    logger.error(f"Failed to import Gemini AI: {e}")
+    GEMINI_AVAILABLE = False
+except Exception as e:
+    logger.error(f"Unexpected error importing Gemini AI: {e}")
     GEMINI_AVAILABLE = False
 
 # Page configuration
@@ -18,955 +29,1126 @@ st.set_page_config(
     page_title="Chat Jee - JEE Assistant",
     page_icon="🎓",
     layout="wide",
-    initial_sidebar_state="expanded"
+    initial_sidebar_state="collapsed",
+    menu_items={
+        'Get Help': 'https://github.com/Shreyansh260/chat-jee',
+        'Report a bug': 'https://github.com/Shreyansh260/chat-jee/issues',
+        'About': "# Chat Jee - Your AI JEE Preparation Assistant"
+    }
 )
 
-# Fixed Custom CSS for better UI visibility
+# Enhanced CSS styling with animations and better responsiveness
 st.markdown("""
 <style>
-    /* CSS Variables for theme adaptation */
-    :root {
-        /* Light theme colors */
-        --bg-primary: #ffffff;
-        --bg-secondary: #f8f9fa;
-        --bg-tertiary: #f5f5f5;
-        --text-primary: #1f2937;
-        --text-secondary: #4b5563;
-        --text-tertiary: #6b7280;
-        --border-color: #e5e7eb;
-        --border-hover: #d1d5db;
-        --shadow: rgba(0, 0, 0, 0.1);
-        --shadow-hover: rgba(0, 0, 0, 0.15);
-
-        /* Chat message colors - light theme */
-        --user-bg: #dbeafe;
-        --user-border: #3b82f6;
-        --user-text: #1e40af;
-        --user-text-strong: #1d4ed8;
-
-        --bot-bg: #f3e8ff;
-        --bot-border: #a855f7;
-        --bot-text: #7c2d92;
-        --bot-text-strong: #86198f;
-
-        /* Status colors - light theme */
-        --success-bg: #dcfce7;
-        --success-border: #22c55e;
-        --success-text: #166534;
-        --success-text-strong: #15803d;
-
-        --error-bg: #fef2f2;
-        --error-border: #ef4444;
-        --error-text: #dc2626;
-        --error-text-strong: #b91c1c;
-
-        --warning-bg: #fef3c7;
-        --warning-border: #f59e0b;
-        --warning-text: #d97706;
-        --warning-text-strong: #b45309;
-
-        --info-bg: #dbeafe;
-        --info-border: #3b82f6;
-        --info-text: #1d4ed8;
-        --info-text-strong: #1e40af;
-
-        /* Form colors - light theme */
-        --input-bg: #ffffff;
-        --input-border: #d1d5db;
-        --input-border-focus: #3b82f6;
-        --input-text: #1f2937;
-    }
-
-    /* Dark theme colors */
-    @media (prefers-color-scheme: dark) {
-        :root {
-            --bg-primary: #23263a;
-            --bg-secondary: #181a28;
-            --bg-tertiary: #23263a;
-            --text-primary: #f5f6fa;
-            --text-secondary: #cdd6f4;
-            --text-tertiary: #bac2de;
-            --border-color: #313244;
-            --border-hover: #45475a;
-            --shadow: rgba(0, 0, 0, 0.7);
-            --shadow-hover: rgba(0, 0, 0, 0.85);
-
-            /* Chat message colors - dark theme */
-            --user-bg: #274690;
-            --user-border: #89b4fa;
-            --user-text: #e0e7ff;
-            --user-text-strong: #b4befe;
-
-            --bot-bg: #5f2a8e;
-            --bot-border: #cba6f7;
-            --bot-text: #f5c2e7;
-            --bot-text-strong: #f2cdcd;
-
-            /* Status colors - dark theme */
-            --success-bg: #1e5128;
-            --success-border: #94e2d5;
-            --success-text: #a6e3a1;
-            --success-text-strong: #94e2d5;
-
-            --error-bg: #7c1d1d;
-            --error-border: #eba0ac;
-            --error-text: #f38ba8;
-            --error-text-strong: #eba0ac;
-
-            --warning-bg: #b45309;
-            --warning-border: #f9e2af;
-            --warning-text: #fab387;
-            --warning-text-strong: #f9e2af;
-
-            --info-bg: #274690;
-            --info-border: #89b4fa;
-            --info-text: #e0e7ff;
-            --info-text-strong: #b4befe;
-
-            /* Form colors - dark theme */
-            --input-bg: #23263a;
-            --input-border: #313244;
-            --input-border-focus: #89b4fa;
-            --input-text: #f5f6fa;
-        }
-    }
-
-    /* Manual dark theme class override */
-    .dark-theme {
-        --bg-primary: #23263a;
-        --bg-secondary: #181a28;
-        --bg-tertiary: #23263a;
-        --text-primary: #f5f6fa;
-        --text-secondary: #cdd6f4;
-        --text-tertiary: #bac2de;
-        --border-color: #313244;
-        --border-hover: #45475a;
-        --shadow: rgba(0, 0, 0, 0.7);
-        --shadow-hover: rgba(0, 0, 0, 0.85);
-
-        --user-bg: #274690;
-        --user-border: #89b4fa;
-        --user-text: #e0e7ff;
-        --user-text-strong: #b4befe;
-
-        --bot-bg: #5f2a8e;
-        --bot-border: #cba6f7;
-        --bot-text: #f5c2e7;
-        --bot-text-strong: #f2cdcd;
-
-        --success-bg: #1e5128;
-        --success-border: #94e2d5;
-        --success-text: #a6e3a1;
-        --success-text-strong: #94e2d5;
-
-        --error-bg: #7c1d1d;
-        --error-border: #eba0ac;
-        --error-text: #f38ba8;
-        --error-text-strong: #eba0ac;
-
-        --warning-bg: #b45309;
-        --warning-border: #f9e2af;
-        --warning-text: #fab387;
-        --warning-text-strong: #f9e2af;
-
-        --info-bg: #274690;
-        --info-border: #89b4fa;
-        --info-text: #e0e7ff;
-        --info-text-strong: #b4befe;
-
-        --input-bg: #23263a;
-        --input-border: #313244;
-        --input-border-focus: #89b4fa;
-        --input-text: #f5f6fa;
-    }
-
+    /* Hide Streamlit default elements */
+    #MainMenu {visibility: hidden;}
+    .stDeployButton {display: none;}
+    footer {visibility: hidden;}
+    .stAppHeader {display: none;}
+    
+    /* Custom fonts */
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
     
     /* Main app styling */
     .stApp {
-        background-color: var(--bg-secondary);
-        color: var(--text-primary);
-        transition: background-color 0.3s ease, color 0.3s ease;
+        background: linear-gradient(135deg, #0f0f23 0%, #1a1a2e 100%);
+        color: #ffffff;
+        font-family: 'Inter', sans-serif;
     }
     
-    .main-header {
-        background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
-        color: white;
-        padding: 2rem;
-        border-radius: 15px;
-        margin-bottom: 2rem;
-        text-align: center;
-        box-shadow: 0 4px 15px var(--shadow);
-        transition: box-shadow 0.3s ease;
+    /* Animated background */
+    .stApp::before {
+        content: '';
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: 
+            radial-gradient(circle at 20% 80%, rgba(120, 119, 198, 0.1) 0%, transparent 50%),
+            radial-gradient(circle at 80% 20%, rgba(16, 163, 127, 0.1) 0%, transparent 50%);
+        pointer-events: none;
+        z-index: -1;
     }
     
-    .main-header h1 {
-        color: white !important;
-        margin-bottom: 0.5rem;
+    /* Chat container with glassmorphism effect */
+    .chat-container {
+        background: rgba(26, 26, 46, 0.8);
+        backdrop-filter: blur(10px);
+        border-radius: 16px;
+        padding: 0;
+        margin: 0;
+        min-height: 60vh;
+        max-height: 70vh;
+        overflow-y: auto;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+        scrollbar-width: thin;
+        scrollbar-color: #444 transparent;
     }
     
-    .main-header p {
-        color: #f0f0f0 !important;
-        margin-bottom: 0.3rem;
+    .chat-container::-webkit-scrollbar {
+        width: 8px;
     }
     
-    /* Chat message styling */
-    .chat-message {
+    .chat-container::-webkit-scrollbar-track {
+        background: transparent;
+    }
+    
+    .chat-container::-webkit-scrollbar-thumb {
+        background: linear-gradient(45deg, #10a37f, #667eea);
+        border-radius: 4px;
+    }
+    
+    .chat-container::-webkit-scrollbar-thumb:hover {
+        background: linear-gradient(45deg, #0d8b63, #5a6fd8);
+    }
+    
+    /* Enhanced message styling */
+    .message {
         padding: 1.5rem;
-        border-radius: 12px;
-        margin: 1rem 0;
-        box-shadow: 0 2px 8px var(--shadow);
-        border: 1px solid var(--border-color);
+        margin: 0;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+        display: flex;
+        align-items: flex-start;
+        gap: 16px;
         transition: all 0.3s ease;
+        position: relative;
+    }
+    
+    .message:hover {
+        background: rgba(255, 255, 255, 0.02);
+    }
+    
+    .message-icon {
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 18px;
+        flex-shrink: 0;
+        margin-top: 4px;
+        transition: all 0.3s ease;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+    }
+    
+    .user-icon {
+        background: linear-gradient(135deg, #10a37f, #0d8b63);
+        color: white;
+    }
+    
+    .bot-icon {
+        background: linear-gradient(135deg, #667eea, #764ba2);
+        color: white;
+    }
+    
+    .message-content {
+        flex-grow: 1;
+        line-height: 1.7;
+        font-size: 15px;
+        word-wrap: break-word;
+        color: #e0e0e0;
     }
     
     .user-message {
-        background-color: var(--user-bg);
-        border-left: 4px solid var(--user-border);
-        color: var(--user-text);
-    }
-    
-    .user-message strong {
-        color: var(--user-text-strong) !important;
+        background: rgba(45, 45, 72, 0.3);
     }
     
     .bot-message {
-        background-color: var(--bot-bg);
-        border-left: 4px solid var(--bot-border);
-        color: var(--bot-text);
+        background: rgba(26, 26, 46, 0.3);
     }
     
-    .bot-message strong {
-        color: var(--bot-text-strong) !important;
-    }
-    
-    /* PDF info styling */
-    .pdf-info {
-        background-color: var(--warning-bg);
-        color: var(--warning-text);
+    /* Code blocks styling */
+    .message-content pre {
+        background: rgba(15, 15, 35, 0.8);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: 8px;
         padding: 1rem;
-        border-radius: 8px;
-        border-left: 4px solid var(--warning-border);
-        margin: 1rem 0;
-        border: 1px solid var(--warning-border);
-        transition: all 0.3s ease;
+        overflow-x: auto;
+        font-family: 'JetBrains Mono', monospace;
     }
     
-    .pdf-info strong {
-        color: var(--warning-text-strong) !important;
+    .message-content code {
+        background: rgba(15, 15, 35, 0.6);
+        padding: 2px 6px;
+        border-radius: 4px;
+        font-family: 'JetBrains Mono', monospace;
+        font-size: 13px;
     }
     
-    /* Status messages */
-    .status-success {
-        background-color: var(--success-bg);
-        color: var(--success-text);
-        padding: 1rem;
-        border-radius: 8px;
-        border: 1px solid var(--success-border);
-        margin: 1rem 0;
-        transition: all 0.3s ease;
+    /* Enhanced header with animated gradient */
+    .header {
+        text-align: center;
+        padding: 3rem 1rem 2rem;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 50%, #10a37f 100%);
+        background-size: 200% 200%;
+        animation: gradientShift 6s ease infinite;
+        border-radius: 0 0 24px 24px;
+        margin-bottom: 2rem;
+        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+        position: relative;
+        overflow: hidden;
     }
     
-    .status-success strong {
-        color: var(--success-text-strong) !important;
+    .header::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: linear-gradient(45deg, transparent, rgba(255, 255, 255, 0.1), transparent);
+        animation: shimmer 3s ease-in-out infinite;
     }
     
-    .status-error {
-        background-color: var(--error-bg);
-        color: var(--error-text);
-        padding: 1rem;
-        border-radius: 8px;
-        border: 1px solid var(--error-border);
-        margin: 1rem 0;
-        transition: all 0.3s ease;
+    @keyframes gradientShift {
+        0% { background-position: 0% 50%; }
+        50% { background-position: 100% 50%; }
+        100% { background-position: 0% 50%; }
     }
     
-    .status-error strong {
-        color: var(--error-text-strong) !important;
+    @keyframes shimmer {
+        0% { transform: translateX(-100%); }
+        100% { transform: translateX(100%); }
     }
     
-    /* Button styling */
-    .stButton > button {
-        background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%);
-        color: white !important;
-        border: none;
-        border-radius: 8px;
-        padding: 0.5rem 2rem;
-        font-weight: 600;
-        transition: all 0.3s ease;
+    .header h1 {
+        color: white;
+        margin: 0;
+        font-size: 3rem;
+        font-weight: 700;
+        text-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+        position: relative;
+        z-index: 1;
     }
     
-    .stButton > button:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 4px 12px rgba(79, 70, 229, 0.4);
-        background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%);
+    .header p {
+        color: rgba(255, 255, 255, 0.9);
+        margin: 0.5rem 0 0;
+        font-size: 1.2rem;
+        font-weight: 400;
+        position: relative;
+        z-index: 1;
     }
     
-    /* Text area styling */
+    /* Enhanced input area */
     .stTextArea textarea {
-        border-radius: 10px;
-        border: 2px solid var(--input-border) !important;
-        background-color: var(--input-bg) !important;
-        color: var(--input-text) !important;
-        transition: all 0.3s ease;
+        background: rgba(45, 45, 72, 0.8) !important;
+        color: #ffffff !important;
+        border: 1px solid rgba(255, 255, 255, 0.2) !important;
+        border-radius: 16px !important;
+        padding: 16px 60px 16px 20px !important;
+        font-size: 15px !important;
+        line-height: 1.5 !important;
+        resize: none !important;
+        min-height: 60px !important;
+        max-height: 200px !important;
+        backdrop-filter: blur(10px);
+        transition: all 0.3s ease !important;
+        font-family: 'Inter', sans-serif !important;
     }
     
     .stTextArea textarea:focus {
-        border-color: var(--input-border-focus) !important;
-        box-shadow: 0 0 0 1px var(--input-border-focus);
+        border-color: #10a37f !important;
+        outline: none !important;
+        box-shadow: 0 0 0 3px rgba(16, 163, 127, 0.2) !important;
+        background: rgba(45, 45, 72, 0.9) !important;
     }
     
-    /* Sidebar styling */
-    .css-1d391kg {
-        background-color: var(--bg-tertiary);
-        transition: background-color 0.3s ease;
+    .stTextArea textarea::placeholder {
+        color: rgba(255, 255, 255, 0.5) !important;
     }
     
-    /* Metrics styling */
-    .css-1xarl3l {
-        background-color: var(--bg-primary);
-        padding: 1rem;
-        border-radius: 8px;
-        border: 1px solid var(--border-color);
-        color: var(--text-primary);
-        transition: all 0.3s ease;
+    /* Enhanced buttons */
+    .stButton > button {
+        background: linear-gradient(135deg, #10a37f, #0d8b63) !important;
+        color: white !important;
+        border: none !important;
+        border-radius: 12px !important;
+        padding: 12px 24px !important;
+        font-weight: 600 !important;
+        font-size: 14px !important;
+        transition: all 0.3s ease !important;
+        box-shadow: 0 4px 12px rgba(16, 163, 127, 0.3) !important;
+        text-transform: uppercase !important;
+        letter-spacing: 0.5px !important;
     }
     
-    /* Info boxes */
-    .stInfo {
-        background-color: var(--info-bg) !important;
-        color: var(--info-text) !important;
-        border: 1px solid var(--info-border) !important;
-        transition: all 0.3s ease;
+    .stButton > button:hover {
+        background: linear-gradient(135deg, #0d8b63, #10a37f) !important;
+        transform: translateY(-2px) !important;
+        box-shadow: 0 6px 16px rgba(16, 163, 127, 0.4) !important;
     }
     
-    .stSuccess {
-        background-color: var(--success-bg) !important;
-        color: var(--success-text) !important;
-        border: 1px solid var(--success-border) !important;
-        transition: all 0.3s ease;
+    .stButton > button:active {
+        transform: translateY(0) !important;
     }
     
-    .stWarning {
-        background-color: var(--warning-bg) !important;
-        color: var(--warning-text) !important;
-        border: 1px solid var(--warning-border) !important;
-        transition: all 0.3s ease;
-    }
-    
-    .stError {
-        background-color: var(--error-bg) !important;
-        color: var(--error-text) !important;
-        border: 1px solid var(--error-border) !important;
-        transition: all 0.3s ease;
-    }
-    
-    /* Quick question buttons */
-    .quick-question-btn {
-        background-color: var(--bg-primary);
-        border: 2px solid #6366f1;
-        border-radius: 20px;
-        padding: 0.8rem 1.2rem;
-        margin: 0.3rem;
-        cursor: pointer;
-        transition: all 0.3s ease;
-        color: var(--text-primary) !important;
-    }
-    
-    .quick-question-btn:hover {
-        background-color: var(--bg-tertiary);
-        border-color: #8b5cf6;
-        transform: translateY(-1px);
-    }
-    
-    /* Headers and text visibility */
-    h1, h2, h3, h4, h5, h6 {
-        color: var(--text-primary) !important;
-        transition: color 0.3s ease;
-    }
-    
-    .stMarkdown {
-        color: var(--text-primary);
-        transition: color 0.3s ease;
-    }
-    
-    /* Ensure all text is readable */
-    .stApp .main .block-container {
-        color: var(--text-primary);
-        transition: color 0.3s ease;
-    }
-    
-    /* Fix metric labels */
-    [data-testid="metric-container"] {
-        background-color: var(--bg-primary) !important;
-        border: 1px solid var(--border-color) !important;
-        padding: 1rem;
-        border-radius: 8px;
-        transition: all 0.3s ease;
-    }
-    
-    [data-testid="metric-container"] > div {
-        color: var(--text-primary) !important;
-    }
-    
-    [data-testid="metric-container"] [data-testid="stMetricValue"] {
-        color: var(--text-primary) !important;
-    }
-    
-    [data-testid="metric-container"] [data-testid="stMetricLabel"] {
-        color: var(--text-secondary) !important;
-    }
-    
-    /* File uploader styling */
+    /* Enhanced PDF upload area */
     .stFileUploader {
-        background-color: var(--bg-primary) !important;
-        border: 2px dashed #6366f1 !important;
-        border-radius: 10px;
-        padding: 1rem;
-        transition: all 0.3s ease;
+        background: rgba(45, 45, 72, 0.3) !important;
+        border: 2px dashed rgba(255, 255, 255, 0.2) !important;
+        border-radius: 16px !important;
+        padding: 2rem !important;
+        text-align: center !important;
+        transition: all 0.3s ease !important;
+        backdrop-filter: blur(5px) !important;
+    }
+    
+    .stFileUploader:hover {
+        border-color: #10a37f !important;
+        background: rgba(45, 45, 72, 0.5) !important;
     }
     
     .stFileUploader label {
-        color: var(--text-primary) !important;
+        color: #ffffff !important;
+        font-weight: 500 !important;
     }
     
-    /* Progress bar */
-    .stProgress > div > div {
-        background-color: #6366f1;
+    /* Status messages */
+    .stSuccess {
+        background: rgba(26, 46, 26, 0.8) !important;
+        border: 1px solid rgba(16, 163, 127, 0.3) !important;
+        border-radius: 12px !important;
+        backdrop-filter: blur(10px) !important;
     }
     
-    /* Select box styling */
-    .stSelectbox > div > div {
-        background-color: var(--input-bg) !important;
-        color: var(--input-text) !important;
-        border-color: var(--input-border) !important;
+    .stError {
+        background: rgba(46, 26, 26, 0.8) !important;
+        border: 1px solid rgba(239, 68, 68, 0.3) !important;
+        border-radius: 12px !important;
+        backdrop-filter: blur(10px) !important;
+    }
+    
+    .stWarning {
+        background: rgba(46, 39, 26, 0.8) !important;
+        border: 1px solid rgba(245, 158, 11, 0.3) !important;
+        border-radius: 12px !important;
+        backdrop-filter: blur(10px) !important;
+    }
+    
+    .stInfo {
+        background: rgba(26, 39, 46, 0.8) !important;
+        border: 1px solid rgba(59, 130, 246, 0.3) !important;
+        border-radius: 12px !important;
+        backdrop-filter: blur(10px) !important;
+    }
+    
+    /* Enhanced welcome message */
+    .welcome-message {
+        text-align: center;
+        padding: 3rem 2rem;
+        color: #ccc;
+        position: relative;
+    }
+    
+    .welcome-message h2 {
+        color: #ffffff;
+        margin-bottom: 1rem;
+        font-size: 2rem;
+        font-weight: 600;
+    }
+    
+    .welcome-message p {
+        font-size: 1.1rem;
+        line-height: 1.6;
+        margin-bottom: 1rem;
+    }
+    
+    /* Enhanced sample questions */
+    .sample-questions {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+        gap: 1.5rem;
+        margin-top: 2rem;
+    }
+    
+    .sample-question {
+        background: rgba(45, 45, 72, 0.4);
+        backdrop-filter: blur(5px);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: 16px;
+        padding: 1.5rem;
+        cursor: pointer;
         transition: all 0.3s ease;
+        text-align: left;
+        position: relative;
+        overflow: hidden;
     }
     
-    /* Input styling */
-    .stTextInput > div > div > input {
-        background-color: var(--input-bg) !important;
-        color: var(--input-text) !important;
-        border-color: var(--input-border) !important;
-        transition: all 0.3s ease;
+    .sample-question::before {
+        content: '';
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: linear-gradient(135deg, rgba(16, 163, 127, 0.1), rgba(102, 126, 234, 0.1));
+        opacity: 0;
+        transition: opacity 0.3s ease;
     }
     
-    .stTextInput > div > div > input:focus {
-        border-color: var(--input-border-focus) !important;
+    .sample-question:hover::before {
+        opacity: 1;
     }
     
-    /* Number input styling */
-    .stNumberInput > div > div > input {
-        background-color: var(--input-bg) !important;
-        color: var(--input-text) !important;
-        border-color: var(--input-border) !important;
-        transition: all 0.3s ease;
+    .sample-question:hover {
+        transform: translateY(-4px);
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
+        border-color: rgba(16, 163, 127, 0.3);
     }
     
-    /* Slider styling */
-    .stSlider {
-        color: var(--text-primary);
-        transition: color 0.3s ease;
+    .sample-question strong {
+        color: #10a37f;
+        font-weight: 600;
+        position: relative;
+        z-index: 1;
     }
     
-    /* Expander styling */
+    .sample-question span {
+        position: relative;
+        z-index: 1;
+    }
+    
+    /* Enhanced typing indicator */
+    .typing-indicator {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 1rem;
+        color: #10a37f;
+        font-style: italic;
+        font-weight: 500;
+    }
+    
+    .typing-dots {
+        display: flex;
+        gap: 6px;
+    }
+    
+    .typing-dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background: linear-gradient(135deg, #10a37f, #0d8b63);
+        animation: typing 1.4s infinite;
+    }
+    
+    .typing-dot:nth-child(2) {
+        animation-delay: 0.2s;
+    }
+    
+    .typing-dot:nth-child(3) {
+        animation-delay: 0.4s;
+    }
+    
+    @keyframes typing {
+        0%, 60%, 100% {
+            transform: translateY(0);
+            opacity: 0.4;
+        }
+        30% {
+            transform: translateY(-8px);
+            opacity: 1;
+        }
+    }
+    
+    /* Enhanced expander */
     .streamlit-expanderHeader {
-        background-color: var(--bg-primary) !important;
-        color: var(--text-primary) !important;
-        border-color: var(--border-color) !important;
-        transition: all 0.3s ease;
+        background: rgba(45, 45, 72, 0.5) !important;
+        border: 1px solid rgba(255, 255, 255, 0.1) !important;
+        border-radius: 12px !important;
+        backdrop-filter: blur(10px) !important;
     }
     
     .streamlit-expanderContent {
-        background-color: var(--bg-secondary) !important;
-        border-color: var(--border-color) !important;
-        transition: all 0.3s ease;
+        background: rgba(26, 26, 46, 0.8) !important;
+        border: 1px solid rgba(255, 255, 255, 0.05) !important;
+        border-radius: 0 0 12px 12px !important;
+        backdrop-filter: blur(10px) !important;
     }
     
-    /* Dataframe styling */
-    .stDataFrame {
-        background-color: var(--bg-primary);
-        transition: background-color 0.3s ease;
+    /* Statistics card */
+    .stats-card {
+        background: rgba(45, 45, 72, 0.4);
+        backdrop-filter: blur(10px);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: 16px;
+        padding: 1.5rem;
+        margin: 1rem 0;
+        text-align: center;
     }
     
-    /* Tab styling */
-    .stTabs [data-baseweb="tab-list"] {
-        background-color: var(--bg-primary);
-        transition: background-color 0.3s ease;
+    .stats-card h3 {
+        color: #10a37f;
+        margin: 0 0 0.5rem 0;
+        font-size: 1.5rem;
+        font-weight: 600;
     }
     
-    .stTabs [data-baseweb="tab"] {
-        color: var(--text-tertiary) !important;
-        transition: color 0.3s ease;
+    .stats-card p {
+        color: #ccc;
+        margin: 0;
+        font-size: 0.9rem;
     }
     
-    .stTabs [aria-selected="true"] {
-        color: var(--text-primary) !important;
-        border-bottom-color: #6366f1;
+    /* Mobile responsive */
+    @media (max-width: 768px) {
+        .header h1 {
+            font-size: 2.5rem;
+        }
+        
+        .header p {
+            font-size: 1rem;
+        }
+        
+        .sample-questions {
+            grid-template-columns: 1fr;
+        }
+        
+        .message {
+            padding: 1rem;
+        }
+        
+        .welcome-message {
+            padding: 2rem 1rem;
+        }
+        
+        .welcome-message h2 {
+            font-size: 1.5rem;
+        }
     }
     
-    /* Checkbox and radio styling */
-    .stCheckbox > label {
-        color: var(--text-primary) !important;
-        transition: color 0.3s ease;
+    /* Pulse animation for loading */
+    @keyframes pulse {
+        0% { opacity: 1; }
+        50% { opacity: 0.5; }
+        100% { opacity: 1; }
     }
     
-    .stRadio > label {
-        color: var(--text-primary) !important;
-        transition: color 0.3s ease;
-    }
-    
-    /* Code block styling */
-    .stCode {
-        background-color: var(--bg-tertiary) !important;
-        color: var(--text-primary) !important;
-        border: 1px solid var(--border-color) !important;
-        transition: all 0.3s ease;
-    }
-    
-    /* JSON styling */
-    .stJson {
-        background-color: var(--bg-tertiary) !important;
-        color: var(--text-primary) !important;
-        transition: all 0.3s ease;
-    }
-    
-    /* Additional form elements */
-    .stDateInput > div > div > input {
-        background-color: var(--input-bg) !important;
-        color: var(--input-text) !important;
-        border-color: var(--input-border) !important;
-    }
-    
-    .stTimeInput > div > div > input {
-        background-color: var(--input-bg) !important;
-        color: var(--input-text) !important;
-        border-color: var(--input-border) !important;
-    }
-    
-    /* Multiselect styling */
-    .stMultiSelect > div > div {
-        background-color: var(--input-bg) !important;
-        border-color: var(--input-border) !important;
-    }
-    
-    .stMultiSelect > div > div > div {
-        color: var(--input-text) !important;
-    }
-    
-    /* Spinner styling */
-    .stSpinner > div {
-        border-top-color: #6366f1 !important;
-    }
-    
-    /* Alert styling */
-    .stAlert {
-        background-color: var(--info-bg) !important;
-        color: var(--info-text) !important;
-        border-color: var(--info-border) !important;
+    .loading {
+        animation: pulse 1.5s ease-in-out infinite;
     }
 </style>
 """, unsafe_allow_html=True)
 
-class ChatJeeBot:
+class EnhancedChatJee:
     def __init__(self):
-        self.pdf_texts = {}
         self.conversation_history = []
+        self.pdf_content = ""
+        self.session_start_time = datetime.now()
+        self.total_messages = 0
+        self.pdf_files_processed = 0
         
-    def extract_text_from_pdf(self, pdf_file) -> str:
-        """Extract text from uploaded PDF file"""
+    def validate_pdf_file(self, pdf_file) -> bool:
+        """Validate PDF file before processing"""
         try:
+            if pdf_file.size > 10 * 1024 * 1024:  # 10MB limit
+                st.error("❌ File size too large. Please upload files smaller than 10MB.")
+                return False
+            
+            if not pdf_file.name.lower().endswith('.pdf'):
+                st.error("❌ Invalid file format. Please upload only PDF files.")
+                return False
+            
+            return True
+        except Exception as e:
+            logger.error(f"Error validating PDF: {e}")
+            return False
+    
+    def extract_text_from_pdf(self, pdf_file) -> str:
+        """Extract text from PDF file with better error handling"""
+        try:
+            if not self.validate_pdf_file(pdf_file):
+                return ""
+            
             pdf_reader = PdfReader(pdf_file)
             text = ""
-            for page in pdf_reader.pages:
-                text += page.extract_text() + "\n"
+            
+            if len(pdf_reader.pages) == 0:
+                st.warning("⚠️ PDF appears to be empty or corrupted.")
+                return ""
+            
+            for page_num, page in enumerate(pdf_reader.pages):
+                try:
+                    page_text = page.extract_text()
+                    if page_text.strip():
+                        text += f"\n--- Page {page_num + 1} ---\n{page_text}\n"
+                except Exception as e:
+                    logger.warning(f"Error extracting text from page {page_num + 1}: {e}")
+                    continue
+            
+            if not text.strip():
+                st.warning("⚠️ No text could be extracted from the PDF. It might be image-based.")
+                return ""
+            
             return text
         except Exception as e:
-            st.error(f"Error reading PDF: {str(e)}")
+            logger.error(f"Error reading PDF {pdf_file.name}: {e}")
+            st.error(f"❌ Error reading PDF: {str(e)}")
             return ""
     
-    def create_file_hash(self, file_content: bytes) -> str:
-        """Create a hash for the file to avoid reprocessing"""
-        return hashlib.md5(file_content).hexdigest()
-    
-    def process_pdfs(self, uploaded_files) -> Dict[str, str]:
-        """Process multiple PDF files and extract text"""
-        pdf_texts = {}
+    def process_pdfs(self, uploaded_files) -> str:
+        """Process multiple PDF files with progress tracking"""
+        all_text = ""
+        successful_files = 0
         
         progress_bar = st.progress(0)
         status_text = st.empty()
         
-        for i, uploaded_file in enumerate(uploaded_files):
-            status_text.text(f"Processing {uploaded_file.name}...")
+        for i, file in enumerate(uploaded_files):
+            progress = (i + 1) / len(uploaded_files)
+            progress_bar.progress(progress)
+            status_text.text(f"Processing {file.name}... ({i + 1}/{len(uploaded_files)})")
             
-            # Create file hash to check if already processed
-            file_content = uploaded_file.read()
-            file_hash = self.create_file_hash(file_content)
-            
-            # Reset file pointer
-            uploaded_file.seek(0)
-            
-            # Extract text
-            text = self.extract_text_from_pdf(uploaded_file)
-            if text.strip():
-                pdf_texts[uploaded_file.name] = {
-                    'text': text,
-                    'hash': file_hash,
-                    'pages': len(PdfReader(uploaded_file).pages)
-                }
-            
-            progress_bar.progress((i + 1) / len(uploaded_files))
+            text = self.extract_text_from_pdf(file)
+            if text:
+                all_text += f"\n\n{'='*50}\n📄 Content from {file.name}\n{'='*50}\n{text}"
+                successful_files += 1
         
-        status_text.text("✅ All PDFs processed successfully!")
-        time.sleep(1)
         progress_bar.empty()
         status_text.empty()
         
-        return pdf_texts
+        if successful_files > 0:
+            self.pdf_files_processed = successful_files
+            st.success(f"✅ Successfully processed {successful_files} out of {len(uploaded_files)} PDF(s)")
+        else:
+            st.error("❌ No PDFs could be processed successfully.")
+        
+        return all_text
     
-    def create_context_prompt(self, user_question: str, pdf_texts: Dict) -> str:
-        """Create context-aware prompt with PDF content"""
-        context = f"""You are "Chat Jee", an expert AI tutor specializing in JEE (Joint Entrance Examination) and competitive exam preparation. You have access to the following study materials:
-
-"""
+    def clean_and_format_response(self, response: str) -> str:
+        """Clean and format the AI response"""
+        # Remove excessive newlines
+        response = re.sub(r'\n{3,}', '\n\n', response)
         
-        # Add PDF information to context
-        for filename, content in pdf_texts.items():
-            context += f"📚 **{filename}** ({content['pages']} pages)\n"
+        # Format mathematical expressions
+        response = re.sub(r'\*\*(.*?)\*\*', r'**\1**', response)
         
-        context += f"""
-
-**User Question:** {user_question}
-
-**Instructions:**
-- Provide detailed, step-by-step explanations
-- Use relevant information from the uploaded study materials when applicable
-- Include formulas, concepts, and examples
-- Give practical JEE preparation tips
-- Reference specific sections or topics from the materials when relevant
-- If solving problems, show complete solution steps
-- Be encouraging and supportive
-- Format mathematical expressions clearly
-- For PYQs (Previous Year Questions), provide detailed analysis
-- Use proper formatting with headings, bullet points, and numbered steps where appropriate
-
-**Available Study Content:**
-"""
+        # Format code blocks
+        response = re.sub(r'```(\w+)?\n(.*?)```', r'```\1\n\2\n```', response, flags=re.DOTALL)
         
-        # Add relevant text snippets (limited to avoid token limits)
-        total_context_length = 0
-        max_context_length = 8000  # Adjust based on model limits
-        
-        for filename, content in pdf_texts.items():
-            text_snippet = content['text'][:2000]  # Take first 2000 chars
-            if total_context_length + len(text_snippet) < max_context_length:
-                context += f"\n--- Content from {filename} ---\n{text_snippet}\n"
-                total_context_length += len(text_snippet)
-        
-        context += "\nPlease provide a comprehensive answer based on the above materials:"
-        
-        return context
+        return response.strip()
     
-    def get_gemini_response(self, prompt: str) -> str:
-        """Get response from Gemini using your imported model"""
+    def get_response(self, user_input: str) -> str:
+        """Get AI response with enhanced error handling"""
         try:
             if not GEMINI_AVAILABLE:
-                return "❌ Gemini AI module not available. Please check Gemine_AI.py file."
+                return """❌ **Gemini AI module not available**
+                
+Please ensure that:
+1. The `Gemine_AI.py` file is in the same directory
+2. The Gemini API is properly configured
+3. You have a valid API key
+
+You can still use this interface once you fix the AI module."""
             
-            # Add to conversation history for context
-            self.conversation_history.append(f"User: {prompt}")
+            # Input validation
+            if not user_input.strip():
+                return "Please enter a question or message."
             
-            # Create conversation context
-            conversation_context = "\n".join(self.conversation_history[-10:])  # Keep last 10 exchanges
-            full_prompt = conversation_context + "\nAssistant:"
+            if len(user_input) > 5000:
+                return "⚠️ Your message is too long. Please keep it under 5000 characters."
             
-            # Generate response using your imported model
-            response = model.generate_content(full_prompt)
+            # Create enhanced context
+            context = f"""You are Chat Jee, an expert AI tutor specialized in JEE (Joint Entrance Examination) preparation.
+
+{"📚 **Available Study Materials:**" + self.pdf_content[:10000] + "..." if self.pdf_content else ""}
+
+**Previous Conversation Context:**
+{chr(10).join(self.conversation_history[-8:])}
+
+**Current Student Question:** {user_input}
+
+**Instructions:**
+- Provide clear, detailed, and step-by-step explanations
+- Use proper formatting with headings, bullet points, and code blocks where appropriate
+- Include relevant examples and practice problems
+- Be encouraging and supportive
+- If solving numerical problems, show all steps clearly
+- For conceptual questions, provide intuitive explanations
+- Reference JEE syllabus and previous year questions when relevant
+
+**Response Format:**
+- Use markdown formatting for better readability
+- Include emojis to make responses more engaging
+- Structure your response with clear sections
+- Provide additional resources or practice suggestions when helpful
+"""
+            
+            # Get response from AI
+            response = model.generate_content(context)
             bot_reply = response.text.strip()
             
-            # Add bot response to history
-            self.conversation_history.append(f"Assistant: {bot_reply}")
+            # Clean and format response
+            bot_reply = self.clean_and_format_response(bot_reply)
+            
+            # Update conversation history
+            self.conversation_history.append(f"Student: {user_input}")
+            self.conversation_history.append(f"Chat Jee: {bot_reply}")
+            
+            # Keep only last 20 exchanges to manage memory
+            if len(self.conversation_history) > 40:
+                self.conversation_history = self.conversation_history[-40:]
+            
+            self.total_messages += 1
             
             return bot_reply
-        
+            
         except Exception as e:
-            error_msg = f"Error generating response: {str(e)}"
-            st.error(error_msg)
-            return error_msg
+            logger.error(f"Error generating response: {e}")
+            return f"""❌ **Error generating response**
+            
+I encountered an error while processing your question: `{str(e)}`
+
+**Possible solutions:**
+1. Try rephrasing your question
+2. Check your internet connection
+3. Ensure the AI module is properly configured
+4. Contact support if the issue persists
+
+Please try again with a different question."""
+    
+    def get_session_stats(self) -> Dict:
+        """Get session statistics"""
+        session_duration = datetime.now() - self.session_start_time
+        return {
+            "duration": str(session_duration).split('.')[0],
+            "messages": self.total_messages,
+            "pdfs_processed": self.pdf_files_processed,
+            "has_materials": bool(self.pdf_content)
+        }
+
+def create_sample_questions():
+    """Create sample questions with better formatting"""
+    sample_questions = [
+        {
+            "category": "📐 Mathematics",
+            "icon": "📐",
+            "question": "Explain the concept of limits in calculus with step-by-step examples",
+            "color": "#10a37f"
+        },
+        {
+            "category": "⚡ Physics", 
+            "icon": "⚡",
+            "question": "Solve a rotational motion problem with detailed solution steps",
+            "color": "#667eea"
+        },
+        {
+            "category": "🧪 Chemistry",
+            "icon": "🧪", 
+            "question": "Important organic chemistry reactions and mechanisms for JEE",
+            "color": "#764ba2"
+        },
+        {
+            "category": "📝 Previous Years",
+            "icon": "📝",
+            "question": "JEE Main 2023 coordinate geometry previous year questions",
+            "color": "#f59e0b"
+        },
+        {
+            "category": "🎯 Problem Solving",
+            "icon": "🎯",
+            "question": "Time management strategies for JEE Main examination",
+            "color": "#ef4444"
+        },
+        {
+            "category": "📊 Revision",
+            "icon": "📊",
+            "question": "Quick revision notes for thermodynamics concepts",
+            "color": "#8b5cf6"
+        }
+    ]
+    
+    questions_html = "<div class='sample-questions'>"
+    for q in sample_questions:
+        questions_html += f"""
+        <div class="sample-question" onclick="document.getElementById('chat_input').value='{q['question']}'">
+            <strong style="color: {q['color']};">{q['icon']} {q['category']}</strong><br>
+            <span>"{q['question']}"</span>
+        </div>
+        """
+    questions_html += "</div>"
+    
+    return questions_html
 
 def main():
-    # Check if Gemini is available
-    if not GEMINI_AVAILABLE:
-        st.markdown("""
-        <div class="status-error">
-            <h3>⚠️ Setup Required</h3>
-            <p>Please ensure that <code>Gemine_AI.py</code> is in the same directory as this Streamlit app.</p>
-            <p>Your <code>Gemine_AI.py</code> should contain the configured Gemini model.</p>
-        </div>
-        """, unsafe_allow_html=True)
-        return
-    
-    # Initialize the chatbot
+    # Initialize session state
     if 'chatbot' not in st.session_state:
-        st.session_state.chatbot = ChatJeeBot()
+        st.session_state.chatbot = EnhancedChatJee()
     
     if 'messages' not in st.session_state:
         st.session_state.messages = []
     
-    if 'pdf_processed' not in st.session_state:
-        st.session_state.pdf_processed = False
+    if 'pdf_uploaded' not in st.session_state:
+        st.session_state.pdf_uploaded = False
     
-    if 'pdf_texts' not in st.session_state:
-        st.session_state.pdf_texts = {}
+    if 'processing' not in st.session_state:
+        st.session_state.processing = False
     
-    # Header
+    # Header with enhanced styling
     st.markdown("""
-    <div class="main-header">
+    <div class="header">
         <h1>🎓 Chat Jee</h1>
-        <p>Your AI-powered JEE & Competitive Exam Assistant</p>
-        <p><em>Upload study materials and get intelligent answers!</em></p>
-        <p><small>✅ Using your configured AI model</small></p>
+        <p>Your AI-powered JEE preparation assistant with personalized learning</p>
     </div>
     """, unsafe_allow_html=True)
     
-    # Sidebar for configuration
+    # Sidebar with session stats
     with st.sidebar:
-        st.header("⚙️ Configuration")
+        st.markdown("### 📊 Session Statistics")
+        stats = st.session_state.chatbot.get_session_stats()
         
-        # Show API status
-        st.markdown("""
-        <div class="status-success">
-            <strong>🔑 API Status:</strong> Online
-        </div>
-        """, unsafe_allow_html=True)
+        col1, col2 = st.columns(2)
+        with col1:
+            st.metric("Messages", stats["messages"])
+            st.metric("PDFs Processed", stats["pdfs_processed"])
+        with col2:
+            st.metric("Session Time", stats["duration"])
+            st.metric("Materials", "Yes" if stats["has_materials"] else "No")
         
         st.markdown("---")
+        st.markdown("### 🔧 Quick Actions")
         
-        # File upload
-        st.header("📚 Upload Study Materials")
-        uploaded_files = st.file_uploader(
-            "Upload PDF files (JEE materials, question banks, etc.)",
-            type=['pdf'],
-            accept_multiple_files=True,
-            help="Upload multiple PDF files containing JEE study materials"
-        )
+        if st.button("🗑️ Clear Chat History"):
+            st.session_state.messages = []
+            st.session_state.chatbot.conversation_history = []
+            st.success("Chat history cleared!")
+            st.rerun()
         
-        # Process PDFs button
-        if uploaded_files and not st.session_state.pdf_processed:
-            if st.button("🚀 Process PDFs", type="primary"):
-                with st.spinner("Processing PDFs..."):
-                    st.session_state.pdf_texts = st.session_state.chatbot.process_pdfs(uploaded_files)
-                    st.session_state.pdf_processed = True
-                    st.success("PDFs processed successfully!")
-                    st.rerun()
-        
-        # Display PDF info
-        if st.session_state.pdf_texts:
-            st.markdown("### 📄 Loaded Materials:")
-            for filename, content in st.session_state.pdf_texts.items():
-                st.markdown(f"""
-                <div class="pdf-info">
-                    <strong>{filename}</strong><br>
-                    📖 {content['pages']} pages<br>
-                    📝 {len(content['text'])} characters
-                </div>
-                """, unsafe_allow_html=True)
-        
-        # Reset button
-        if st.button("🔄 Reset Session"):
-            st.session_state.clear()
+        if st.button("📄 Clear PDF Materials"):
+            st.session_state.chatbot.pdf_content = ""
+            st.session_state.pdf_uploaded = False
+            st.success("PDF materials cleared!")
             st.rerun()
         
         st.markdown("---")
+        st.markdown("### ℹ️ About Chat Jee")
         st.markdown("""
-        ### 💡 Tips:
-        - Upload comprehensive study materials
-        - Ask specific questions about topics
-        - Request step-by-step solutions
-        - Ask for previous year questions
-        - Get concept explanations
-        - Use mathematical notation in questions
+        Chat Jee is an AI-powered assistant designed specifically for JEE preparation. 
+        It can help you with:
+        - Concept explanations
+        - Problem solving
+        - Previous year questions
+        - Study strategies
+        - Doubt resolution
         """)
     
-    # Main chat interface
+    # Main content area
     col1, col2 = st.columns([3, 1])
     
     with col1:
-        # Quick question buttons
-        st.markdown("### 🚀 Quick Questions:")
-        quick_questions = [
-            "Explain the concept of limits in calculus with examples",
-            "Important topics in Organic Chemistry for JEE Main",
-            "Solve a physics problem on rotational motion",
-            "Previous year questions on coordinate geometry",
-            "Thermodynamics formulas and key concepts",
-            "Integration techniques with step-by-step examples"
+        # PDF Upload section
+        with st.expander("📚 Upload Study Materials (Optional)", expanded=not st.session_state.pdf_uploaded):
+            if not GEMINI_AVAILABLE:
+                st.error("⚠️ AI module not available. Please fix the Gemini AI configuration first.")
+            else:
+                uploaded_files = st.file_uploader(
+                    "Upload your JEE study materials (PDF files)",
+                    type=['pdf'],
+                    accept_multiple_files=True,
+                    help="Upload multiple PDF files to enhance the AI's knowledge base for personalized assistance."
+                )
+                
+                if uploaded_files:
+                    st.info(f"📄 {len(uploaded_files)} file(s) selected")
+                    
+                    col_a, col_b = st.columns([2, 1])
+                    with col_a:
+                        if st.button("🚀 Process PDFs", type="primary", use_container_width=True):
+                            with st.spinner("🔄 Processing your study materials..."):
+                                try:
+                                    pdf_content = st.session_state.chatbot.process_pdfs(uploaded_files)
+                                    if pdf_content:
+                                        st.session_state.chatbot.pdf_content = pdf_content
+                                        st.session_state.pdf_uploaded = True
+                                        time.sleep(1)
+                                        st.rerun()
+                                except Exception as e:
+                                    st.error(f"❌ Error processing PDFs: {str(e)}")
+                    
+                    with col_b:
+                        if st.button("🗑️ Clear", use_container_width=True):
+                            st.session_state.chatbot.pdf_content = ""
+                            st.session_state.pdf_uploaded = False
+                            st.rerun()
+                
+                if st.session_state.pdf_uploaded:
+                    st.success("✅ Study materials loaded successfully!")
+                    st.info("💡 You can now ask questions about your uploaded materials.")
+        
+        # Chat container
+        chat_container = st.container()
+        
+        with chat_container:
+            # Welcome message or chat history
+            if not st.session_state.messages:
+                st.markdown(f"""
+                <div class="welcome-message">
+                    <h2>👋 Welcome to Chat Jee!</h2>
+                    <p>I'm your AI-powered JEE preparation assistant. I can help you with:</p>
+                    <p><strong>Mathematics • Physics • Chemistry • Problem Solving • Concepts • Previous Year Questions</strong></p>
+                    
+                    <p>💡 <em>Try clicking on any sample question below to get started!</em></p>
+                    
+                    {create_sample_questions()}
+                </div>
+                """, unsafe_allow_html=True)
+            
+            # Display messages
+            for i, message in enumerate(st.session_state.messages):
+                if message["role"] == "user":
+                    st.markdown(f"""
+                    <div class="message user-message">
+                        <div class="message-icon user-icon">👤</div>
+                        <div class="message-content">{message["content"]}</div>
+                    </div>
+                    """, unsafe_allow_html=True)
+                else:
+                    st.markdown(f"""
+                    <div class="message bot-message">
+                        <div class="message-icon bot-icon">🎓</div>
+                        <div class="message-content">{message["content"]}</div>
+                    </div>
+                    """, unsafe_allow_html=True)
+            
+            # Show typing indicator when processing
+            if st.session_state.processing:
+                st.markdown("""
+                <div class="message bot-message">
+                    <div class="message-icon bot-icon">🎓</div>
+                    <div class="typing-indicator">
+                        Chat Jee is thinking
+                        <div class="typing-dots">
+                            <div class="typing-dot"></div>
+                            <div class="typing-dot"></div>
+                            <div class="typing-dot"></div>
+                        </div>
+                    </div>
+                </div>
+                """, unsafe_allow_html=True)
+        
+        # Input area with enhanced styling
+       # Replace the entire input section and shortcut buttons section with this corrected version:
+
+        # Input area with enhanced styling
+        st.markdown("<div style='height: 20px;'></div>", unsafe_allow_html=True)
+        
+        # Input form
+        with st.form(key="chat_form", clear_on_submit=True):
+            user_input = st.text_area(
+                "Message Chat Jee...",
+                placeholder="Ask me anything about JEE preparation... (e.g., 'Explain integration by parts' or 'Solve a thermodynamics problem')",
+                height=80,
+                max_chars=5000,
+                key="user_input",
+                label_visibility="collapsed",
+                help="Type your question here and press Ctrl+Enter to send"
+            )
+            
+            # Form buttons
+            col_1, col_2, col_3 = st.columns([1, 2, 1])
+            with col_2:
+                submitted = st.form_submit_button(
+                    "🚀 Send Message", 
+                    type="primary", 
+                    use_container_width=True,
+                    disabled=st.session_state.processing
+                )
+
+        # Handle form submission OUTSIDE the form context
+        if submitted and user_input.strip():
+            if not GEMINI_AVAILABLE:
+                st.error("❌ Cannot send message. Please fix the Gemini AI configuration first.")
+            else:
+                # Add user message
+                st.session_state.messages.append({"role": "user", "content": user_input})
+                
+                # Show processing state and rerun to display it
+                st.session_state.processing = True
+                st.rerun()
+        
+        # Handle response generation when processing is True
+        if st.session_state.processing:
+            try:
+                # Get the last user message
+                last_user_message = None
+                for msg in reversed(st.session_state.messages):
+                    if msg["role"] == "user":
+                        last_user_message = msg["content"]
+                        break
+                
+                if last_user_message:
+                    # Get AI response
+                    response = st.session_state.chatbot.get_response(last_user_message)
+                    st.session_state.messages.append({"role": "assistant", "content": response})
+                
+                # Clear processing state
+                st.session_state.processing = False
+                st.rerun()
+                
+            except Exception as e:
+                error_msg = f"""❌ **Error generating response**
+                
+I encountered an unexpected error: `{str(e)}`
+
+**Please try:**
+1. Refreshing the page
+2. Rephrasing your question
+3. Checking your internet connection
+4. Contacting support if the issue persists"""
+                
+                st.session_state.messages.append({"role": "assistant", "content": error_msg})
+                logger.error(f"Error in response generation: {e}")
+                
+                # Clear processing state
+                st.session_state.processing = False
+                st.rerun()
+    
+    # MOVE THE COLUMN LAYOUT OUTSIDE THE FORM CONTEXT
+    with col2:
+        # Quick tips panel
+        st.markdown("### 💡 Quick Tips")
+        tips = [
+            "📝 Be specific in your questions",
+            "🔢 Include numbers for calculations", 
+            "📚 Upload PDFs for personalized help",
+            "🎯 Ask for step-by-step solutions",
+            "📊 Request practice problems",
+            "⏰ Ask about time management"
         ]
         
-        cols = st.columns(3)
-        for i, question in enumerate(quick_questions):
-            with cols[i % 3]:
-                if st.button(question, key=f"quick_{i}"):
-                    st.session_state.messages.append({"role": "user", "content": question})
+        for tip in tips:
+            st.markdown(f"• {tip}")
+        
+        st.markdown("---")
+        
+        # Subject shortcuts - NOW OUTSIDE THE FORM
+        st.markdown("### 🎯 Subject Shortcuts")
+        
+        shortcuts = [
+            ("📐 Math", "Explain calculus concepts"),
+            ("⚡ Physics", "Solve mechanics problems"),
+            ("🧪 Chemistry", "Organic reactions"),
+            ("📝 Previous Years", "JEE Main 2023 questions"),
+            ("🎓 Study Tips", "Effective preparation strategies")
+        ]
+        
+        for label, query in shortcuts:
+            if st.button(label, key=f"shortcut_{label}", use_container_width=True):
+                if not GEMINI_AVAILABLE:
+                    st.error("❌ AI module not available")
+                else:
+                    # Add user message
+                    st.session_state.messages.append({"role": "user", "content": query})
                     
-                    with st.spinner("Chat Jee is thinking..."):
-                        if st.session_state.pdf_texts:
-                            context_prompt = st.session_state.chatbot.create_context_prompt(
-                                question, st.session_state.pdf_texts
-                            )
-                        else:
-                            context_prompt = f"As Chat Jee, a JEE preparation expert, please answer: {question}"
-                        
-                        response = st.session_state.chatbot.get_gemini_response(context_prompt)
-                        st.session_state.messages.append({"role": "assistant", "content": response})
+                    # Show processing state
+                    st.session_state.processing = True
                     st.rerun()
         
         st.markdown("---")
         
-        # Chat messages
-        st.markdown("### 💬 Conversation")
-        
-        # Display welcome message if no messages
-        if not st.session_state.messages:
-            st.markdown("""
-            <div class="chat-message bot-message">
-                <strong>🤖 Chat Jee:</strong><br>
-                🎉 Welcome to Chat Jee! I'm ready to help you with JEE preparation. 
-                <br><br>
-                I can help you with:
-                <ul>
-                    <li>📚 Concepts from uploaded materials</li>
-                    <li>🔍 Problem-solving strategies</li>
-                    <li>📝 Previous year questions analysis</li>
-                    <li>📖 Topic explanations and examples</li>
-                    <li>🧮 Formula derivations and applications</li>
-                    <li>💡 Study tips and exam strategies</li>
-                </ul>
-                <div style="margin-top:1em; padding:0.8em; background: linear-gradient(90deg, #fef08a 0%, #fde68a 100%); border-left:4px solid #f59e0b; border-radius:6px;">
-                    <strong style="color:#b8860b;">💡 Pro tip:</strong> 
-                    <span style="color:#7c4700;">Upload your study materials first for more accurate and relevant answers!</span>
-                </div>
-            </div>
-            """, unsafe_allow_html=True)
-        
-        # Display chat messages
-        for message in st.session_state.messages:
-            if message["role"] == "user":
-                st.markdown(f"""
-                <div class="chat-message user-message">
-                    <strong>🧑‍🎓 You:</strong><br>
-                    {message["content"]}
-                </div>
-                """, unsafe_allow_html=True)
-            else:
-                st.markdown(f"""
-                <div class="chat-message bot-message">
-                    <strong>🤖 Chat Jee:</strong><br>
-                    {message["content"]}
-                </div>
-                """, unsafe_allow_html=True)
-        
-        # Chat input
-        user_input = st.text_area(
-            "Ask me anything about JEE preparation:",
-            placeholder="Type your question here... (e.g., 'Explain Newton's laws with examples' or 'Solve this calculus problem step by step')",
-            height=100,
-            key="user_input"
-        )
-        
-        col_send, col_clear = st.columns([1, 1])
-        
-        with col_send:
-            if st.button("📤 Send Message", type="primary"):
-                if not user_input.strip():
-                    st.error("Please enter a question!")
-                else:
-                    # Add user message
-                    st.session_state.messages.append({"role": "user", "content": user_input})
-                    
-                    # Get AI response
-                    with st.spinner("Chat Jee is thinking..."):
-                        if st.session_state.pdf_texts:
-                            context_prompt = st.session_state.chatbot.create_context_prompt(
-                                user_input, st.session_state.pdf_texts
-                            )
-                        else:
-                            context_prompt = f"As Chat Jee, a JEE preparation expert, please answer: {user_input}"
-                        
-                        response = st.session_state.chatbot.get_gemini_response(context_prompt)
-                        st.session_state.messages.append({"role": "assistant", "content": response})
-                    
-                    st.rerun()
-        
-        with col_clear:
-            if st.button("🗑️ Clear Chat"):
-                st.session_state.messages = []
-                st.session_state.chatbot.conversation_history = []
-                st.rerun()
-    
-    with col2:
-        # Statistics and info
-        if st.session_state.pdf_texts:
-            st.markdown("### 📊 Session Stats")
-            
-            total_pages = sum(content['pages'] for content in st.session_state.pdf_texts.values())
-            total_chars = sum(len(content['text']) for content in st.session_state.pdf_texts.values())
-            
-            st.metric("📚 Total PDFs", len(st.session_state.pdf_texts))
-            st.metric("📄 Total Pages", total_pages)
-            st.metric("💬 Messages", len(st.session_state.messages))
-            st.metric("🧠 Context History", len(st.session_state.chatbot.conversation_history))
-            
-            st.markdown("### 🎯 Study Focus Areas")
-            st.info("""
-            **Mathematics:**
-            - Calculus & Limits
-            - Algebra & Functions
-            - Coordinate Geometry
-            - Trigonometry
-            
-            **Physics:**
-            - Mechanics & Motion
-            - Thermodynamics
-            - Electromagnetism
-            - Modern Physics
-            
-            **Chemistry:**
-            - Organic Chemistry
-            - Inorganic Chemistry
-            - Physical Chemistry
-            - Chemical Bonding
-            """)
-        
+        # Status indicator
+        if GEMINI_AVAILABLE:
+            st.success("✅ AI Ready")
         else:
-            st.markdown("### 🔧 Getting Started")
-            st.info("""
-            **Steps to begin:**
+            st.error("❌ AI Unavailable")
             
-            1. ✅ **Gemini AI Ready** (via Gemine_AI.py)
-            2. **Upload PDF files** (study materials)
-            3. **Process the PDFs**
-            4. **Start asking questions!**
-            
-            📚 **Recommended Materials:**
-            - NCERT textbooks (11th & 12th)
-            - Previous year JEE papers
-            - Reference books (HC Verma, RD Sharma)
-            - Formula sheets and notes
-            - Topic-wise question banks
-            
-            💡 **You can ask questions even without PDFs!**
-            """)
+        if st.session_state.chatbot.pdf_content:
+            st.info("📚 Materials Loaded")
+        else:
+            st.warning("📄 No Materials")
+    
+    # Footer with additional information
+    st.markdown("---")
+    st.markdown("""
+    <div style="text-align: center; padding: 2rem; color: #888;">
+        <p>🎓 <strong>Chat Jee</strong> - Your AI JEE Preparation Assistant</p>
+        <p>Built with ❤️ for JEE aspirants | Enhanced with modern UI and robust error handling</p>
+    </div>
+    """, unsafe_allow_html=True)
+    
+    # Auto-scroll JavaScript
+    st.markdown("""
+    <script>
+        // Auto-scroll to bottom function
+        function scrollToBottom() {
+            window.scrollTo({
+                top: document.body.scrollHeight,
+                behavior: 'smooth'
+            });
+        }
         
-        # Additional features info
-        st.markdown("### 🌟 Features")
-        st.success("""
-        ✅ **PDF Content Analysis**
-        ✅ **Context-Aware Responses**
-        ✅ **Step-by-Step Solutions**
-        ✅ **Conversation Memory**
-        ✅ **JEE-Focused Content**
-        ✅ **Multi-Subject Support**
-        """)
+        // Scroll to bottom when new messages appear
+        const observer = new MutationObserver(function(mutations) {
+            mutations.forEach(function(mutation) {
+                if (mutation.type === 'childList' && mutation.addedNodes.length > 0) {
+                    // Check if new message was added
+                    const newNodes = Array.from(mutation.addedNodes);
+                    if (newNodes.some(node => node.classList && node.classList.contains('message'))) {
+                        setTimeout(scrollToBottom, 100);
+                    }
+                }
+            });
+        });
+        
+        // Start observing
+        observer.observe(document.body, {
+            childList: true,
+            subtree: true
+        });
+        
+        // Handle keyboard shortcuts
+        document.addEventListener('keydown', function(e) {
+            // Ctrl+Enter to send message
+            if (e.ctrlKey && e.key === 'Enter') {
+                const sendButton = document.querySelector('button[kind="primary"]');
+                if (sendButton && !sendButton.disabled) {
+                    sendButton.click();
+                }
+            }
+            
+            // Escape to clear input
+            if (e.key === 'Escape') {
+                const textarea = document.querySelector('textarea');
+                if (textarea) {
+                    textarea.value = '';
+                    textarea.focus();
+                }
+            }
+        });
+        
+        // Focus on input when page loads
+        window.addEventListener('load', function() {
+            const textarea = document.querySelector('textarea');
+            if (textarea) {
+                textarea.focus();
+            }
+        });
+    </script>
+    """, unsafe_allow_html=True)
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except Exception as e:
+        logger.error(f"Critical error in main(): {e}")
+        st.error(f"""
+        🚨 **Critical Error**
+        
+        The application encountered a critical error: `{str(e)}`
+        
+        **Please try:**
+        1. Refreshing the page
+        2. Restarting the Streamlit application
+        3. Checking your Python environment
+        4. Ensuring all dependencies are installed
+        
+        If the problem persists, please contact support.
+        """)
+        
+        # Show error details in expander for debugging
+        with st.expander("🔍 Technical Details (for developers)"):
+            st.exception(e)
