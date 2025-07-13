@@ -890,9 +890,9 @@ def main():
                     <h2>👋 Welcome to Chat Jee!</h2>
                     <p>I'm your AI-powered JEE preparation assistant. I can help you with:</p>
                     <p><strong>Mathematics • Physics • Chemistry • Problem Solving • Concepts • Previous Year Questions</strong></p>
-                    
                     <p>💡 <em>Try clicking on any sample question below to get started!</em></p>
-                    
+                </div>
+                <div class="sample-questions">
                     {create_sample_questions()}
                 </div>
                 """, unsafe_allow_html=True)
