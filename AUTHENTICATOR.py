@@ -55,7 +55,7 @@ def authenticate_user() -> dict:
                 st.warning(f"🖥️ Browser-based login failed: {e}")
                 st.info("👉 Switching to headless mode (no browser)...")
     
-                creds = flow.run_local_server(port=0, open_browser=False)
+                creds = flow.run_local_server(port=8501, open_browser=False)
 
 
             os.remove("temp_credentials.json")  # Clean up temp file
