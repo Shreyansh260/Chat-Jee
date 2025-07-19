@@ -1,6 +1,6 @@
-# auth_utils.py or AUTHENTICATOR.py (edited version)
 import os
 import json
+import streamlit as st
 from google.oauth2.credentials import Credentials
 from google_auth_oauthlib.flow import InstalledAppFlow
 from googleapiclient.discovery import build
@@ -41,13 +41,22 @@ def authenticate_user() -> dict:
         if creds and creds.expired and creds.refresh_token:
             creds.refresh(Request())
         else:
-            flow = InstalledAppFlow.from_client_secrets_file('credentials.json', SCOPES)
+            # 🔐 Load credentials from Streamlit secrets
+            credentials_dict = json.loads(st.secrets["google_auth"]["credentials_json"])
+
+            # Save to a temporary JSON file
+            with open("temp_credentials.json", "w") as f:
+                json.dump(credentials_dict, f)
+
+            flow = InstalledAppFlow.from_client_secrets_file("temp_credentials.json", SCOPES)
             creds = flow.run_local_server(port=0)
+
+            os.remove("temp_credentials.json")  # Clean up temp file
 
         with open(TOKEN_FILE, 'w') as token:
             token.write(creds.to_json())
 
-    service = build('oauth2', 'v2', credentials=creds)
+    service = build('oauth2', 'v2', credentials=creds, cache_discovery=False)
     user_info = service.userinfo().get().execute()
 
     save_user_info({
