@@ -49,7 +49,7 @@ def authenticate_user() -> dict:
                 json.dump(credentials_dict, f)
 
             flow = InstalledAppFlow.from_client_secrets_file("temp_credentials.json", SCOPES)
-            creds = flow.run_console(port=0)
+            creds = flow.run_local_server(port=0, open_browser=False)
 
             os.remove("temp_credentials.json")  # Clean up temp file
 
