@@ -7,6 +7,7 @@ import re
 from typing import Dict, List, Optional
 from datetime import datetime
 import logging
+from AUTHENTICATOR import authenticate_user
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -29,7 +30,7 @@ st.set_page_config(
     page_title="Chat Jee - JEE Assistant",
     page_icon="🎓",
     layout="wide",
-    initial_sidebar_state="expanded",
+    initial_sidebar_state="collapsed",
     menu_items={
         'Get Help': 'https://github.com/Shreyansh260/chat-jee',
         'Report a bug': 'https://github.com/Shreyansh260/chat-jee/issues',
@@ -44,7 +45,7 @@ st.markdown("""
     #MainMenu {visibility: hidden;}
     .stDeployButton {display: none;}
     footer {visibility: hidden;}
-
+    
     
     /* Custom fonts */
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
@@ -775,6 +776,15 @@ def create_sample_questions():
     return questions_html
 
 def main():
+    try:
+        user = authenticate_user()
+        st.sidebar.success(f"👋 Hello, {user['name']}!")
+        st.sidebar.image(user['picture'], width=80)
+        st.sidebar.write(f"📧 {user['email']}")
+    except Exception as e:
+        st.sidebar.error(f"Login failed: {e}")
+        st.stop()
+    
     # Initialize session state
     if 'chatbot' not in st.session_state:
         st.session_state.chatbot = EnhancedChatJee()
