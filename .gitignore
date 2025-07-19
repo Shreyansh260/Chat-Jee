@@ -6,10 +6,12 @@ __pycache__/
 # C extensions
 *.so
 
-# Auth and session files
+.streamlit/secrets.toml
 credentials.json
 token.json
 users.json
+temp_credentials.json
+
 
 # Distribution / packaging
 .Python
