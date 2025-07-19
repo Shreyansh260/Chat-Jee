@@ -7,7 +7,7 @@ import re
 from typing import Dict, List, Optional
 from datetime import datetime
 import logging
-from AUTHENTICATOR import authenticate_user
+from AUTHENTICATOR import authenticate_user_manual
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -776,13 +776,12 @@ def create_sample_questions():
     return questions_html
 
 def main():
-    try:
-        user = authenticate_user()
+    user = authenticate_user_manual()
+    if user:
         st.sidebar.success(f"👋 Hello, {user['name']}!")
         st.sidebar.image(user['picture'], width=80)
         st.sidebar.write(f"📧 {user['email']}")
-    except Exception as e:
-        st.sidebar.error(f"Login failed: {e}")
+    else:
         st.stop()
     
     # Initialize session state
