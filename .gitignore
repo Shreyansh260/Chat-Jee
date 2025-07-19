@@ -6,6 +6,11 @@ __pycache__/
 # C extensions
 *.so
 
+# Auth and session files
+credentials.json
+token.json
+users.json
+
 # Distribution / packaging
 .Python
 build/
