@@ -1,7 +1,6 @@
 import os
 import json
 import streamlit as st
-from google.oauth2.credentials import Credentials
 from google_auth_oauthlib.flow import InstalledAppFlow
 from googleapiclient.discovery import build
 from google.auth.transport.requests import Request
@@ -12,64 +11,41 @@ SCOPES = [
     'https://www.googleapis.com/auth/userinfo.profile'
 ]
 
-TOKEN_FILE = 'token.json'
-USER_DB_FILE = 'users.json'
+def authenticate_user_manual():
+    # Step 1: Load client secret from Streamlit secrets
+    credentials_dict = json.loads(st.secrets["google_auth"]["credentials_json"])
 
-def save_user_info(user_info):
-    if os.path.exists(USER_DB_FILE):
-        with open(USER_DB_FILE, 'r') as f:
-            users = json.load(f)
-    else:
-        users = []
+    # Step 2: Save temporarily to file
+    with open("temp_credentials.json", "w") as f:
+        json.dump(credentials_dict, f)
 
-    if not any(user['email'] == user_info['email'] for user in users):
-        users.append(user_info)
-        with open(USER_DB_FILE, 'w') as f:
-            json.dump(users, f, indent=2)
+    # Step 3: Start OAuth flow
+    flow = InstalledAppFlow.from_client_secrets_file("temp_credentials.json", SCOPES)
+    auth_url, _ = flow.authorization_url(prompt='consent')
 
-def authenticate_user() -> dict:
-    creds = None
+    # Step 4: Prompt user to visit auth URL
+    st.info("🔐 Please authenticate with Google:")
+    st.markdown(f"[Click here to sign in with Google]({auth_url})", unsafe_allow_html=True)
 
-    if os.path.exists(TOKEN_FILE):
+    # Step 5: User pastes auth code manually
+    code = st.text_input("Paste the authorization code here:")
+
+    if code:
         try:
-            creds = Credentials.from_authorized_user_file(TOKEN_FILE, SCOPES)
-        except Exception:
-            os.remove(TOKEN_FILE)
-            creds = None
+            flow.fetch_token(code=code)
+            creds = flow.credentials
 
-    if not creds or not creds.valid:
-        if creds and creds.expired and creds.refresh_token:
-            creds.refresh(Request())
-        else:
-            # 🔐 Load credentials from Streamlit secrets
-            credentials_dict = json.loads(st.secrets["google_auth"]["credentials_json"])
+            # Get user info
+            service = build('oauth2', 'v2', credentials=creds)
+            user_info = service.userinfo().get().execute()
 
-            # Save to a temporary JSON file
-            with open("temp_credentials.json", "w") as f:
-                json.dump(credentials_dict, f)
+            return {
+                "name": user_info.get("name"),
+                "email": user_info.get("email"),
+                "picture": user_info.get("picture"),
+                "credentials": creds
+            }
 
-            flow = InstalledAppFlow.from_client_secrets_file("temp_credentials.json", SCOPES)
-            try:
-                creds = flow.run_local_server(port=0)
-            except Exception as e:
-                st.warning(f"🖥️ Browser-based login failed: {e}")
-                st.info("👉 Switching to headless mode (no browser)...")
-    
-                creds = flow.run_local_server(port=0, open_browser=False)
-
-
-            os.remove("temp_credentials.json")  # Clean up temp file
-
-        with open(TOKEN_FILE, 'w') as token:
-            token.write(creds.to_json())
-
-    service = build('oauth2', 'v2', credentials=creds, cache_discovery=False)
-    user_info = service.userinfo().get().execute()
-
-    save_user_info({
-        "name": user_info.get('name'),
-        "email": user_info.get('email'),
-        "picture": user_info.get('picture')
-    })
-
-    return user_info
+        except Exception as e:
+            st.error(f"Authentication failed: {e}")
+            return None
