@@ -782,6 +782,8 @@ def main():
         st.stop()
     else:
         st.success(f"✅ Welcome {user_info['name']} ({user_info['email']})")
+    
+    st.image(user_info["picture"], width=50)
 
     # Initialize session state
     if 'chatbot' not in st.session_state:
