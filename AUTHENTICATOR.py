@@ -136,21 +136,69 @@ def authenticate_user_manual():
     return None
 
 def logout_user():
-    """Add this function to handle logout"""
+    """Fixed logout function with proper session state clearing"""
     try:
-        # Remove from session state
-        if "credentials" in st.session_state:
-            del st.session_state["credentials"]
+        # Remove from session state - clear ALL keys to ensure clean logout
+        keys_to_remove = list(st.session_state.keys())
+        for key in keys_to_remove:
+            del st.session_state[key]
         
         # Remove token file
         if os.path.exists("token.json"):
             os.remove("token.json")
+            
+        # Remove temp credentials if exists
+        if os.path.exists("temp_credentials.json"):
+            os.remove("temp_credentials.json")
         
-        st.success("✅ Logged out successfully!")
+        st.success("✅ Logged out successfully! Redirecting...")
         time.sleep(1)
         st.rerun()
+        
     except Exception as e:
-        st.error(f"Logout failed: {e}")
+        st.error(f"❌ Logout failed: {e}")
+        # Force clear session state even if file operations fail
+        try:
+            keys_to_remove = list(st.session_state.keys())
+            for key in keys_to_remove:
+                del st.session_state[key]
+            st.rerun()
+        except:
+            st.error("Please refresh the page manually to complete logout.")
+
+# Alternative logout function with more aggressive clearing
+def force_logout():
+    """Alternative logout function with more aggressive clearing"""
+    try:
+        # Clear session state
+        st.session_state.clear()
+        
+        # Remove files
+        files_to_remove = ["token.json", "temp_credentials.json"]
+        for file in files_to_remove:
+            try:
+                if os.path.exists(file):
+                    os.remove(file)
+            except Exception as e:
+                st.warning(f"Could not remove {file}: {e}")
+        
+        # Show success and refresh
+        st.success("✅ Logout successful!")
+        st.balloons()  # Visual feedback
+        time.sleep(2)
+        
+        # Use JavaScript to force refresh the page
+        st.markdown("""
+        <script>
+        setTimeout(function() {
+            window.location.reload();
+        }, 2000);
+        </script>
+        """, unsafe_allow_html=True)
+        
+    except Exception as e:
+        st.error(f"❌ Logout error: {e}")
+        st.info("Please refresh the page manually to complete logout.")
 
 # Example usage
 def main():
@@ -161,8 +209,15 @@ def main():
         with st.sidebar:
             user = st.session_state["credentials"]
             st.write(f"👋 Welcome, **{user['name']}**")
-            if st.button("🚪 Logout"):
-                logout_user()
+            
+            # Create two columns for logout buttons
+            col1, col2 = st.columns(2)
+            with col1:
+                if st.button("🚪 Logout", key="logout_normal"):
+                    logout_user()
+            with col2:
+                if st.button("🔄 Force Logout", key="logout_force"):
+                    force_logout()
     
     # Try to authenticate
     user = authenticate_user_manual()
