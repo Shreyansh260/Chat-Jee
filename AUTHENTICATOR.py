@@ -19,7 +19,7 @@ def authenticate_user_manual():
         json.dump(credentials_dict, f)
 
     # Initialize flow WITHOUT redirect_uri
-    flow = InstalledAppFlow.from_client_secrets_file("temp_credentials.json", SCOPES)
+    flow = InstalledAppFlow.from_client_secrets_file("temp_credentials.json", SCOPES,redirect_uri="urn:ietf:wg:oauth:2.0:oob")
     auth_url, _ = flow.authorization_url(prompt='consent')
 
     # Ask user to visit auth link
