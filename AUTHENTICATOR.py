@@ -11,24 +11,33 @@ SCOPES = [
 ]
 
 def authenticate_user_manual():
-    # Load secrets from Streamlit
+    # Already authenticated?
+    if "credentials" in st.session_state:
+        return st.session_state["credentials"]
+
+    # Load credentials JSON from Streamlit secrets
     credentials_dict = json.loads(st.secrets["google_auth"]["credentials_json"])
 
-    # Save to temporary file
+    # Save to temp file
     with open("temp_credentials.json", "w") as f:
         json.dump(credentials_dict, f)
 
-    # Initialize flow WITHOUT redirect_uri
-    flow = InstalledAppFlow.from_client_secrets_file("temp_credentials.json", SCOPES,redirect_uri="urn:ietf:wg:oauth:2.0:oob")
-    auth_url, _ = flow.authorization_url(prompt='consent')
+    # Setup OAuth flow
+    flow = InstalledAppFlow.from_client_secrets_file(
+        "temp_credentials.json",
+        SCOPES,
+        redirect_uri="urn:ietf:wg:oauth:2.0:oob"
+    )
 
-    # Ask user to visit auth link
+    # Step 1: Display Google Sign-in link
+    auth_url, _ = flow.authorization_url(prompt='consent')
     st.info("🔐 Please authenticate with Google:")
     st.markdown(f"[👉 Sign in with Google]({auth_url})", unsafe_allow_html=True)
 
-    # Manual input of code
+    # Step 2: Paste authorization code
     code = st.text_input("Paste the authorization code here:")
 
+    # Step 3: If user provides code, exchange it
     if code:
         try:
             flow.fetch_token(code=code)
@@ -37,17 +46,21 @@ def authenticate_user_manual():
             service = build('oauth2', 'v2', credentials=creds)
             user_info = service.userinfo().get().execute()
 
+            # Store in session state
+            st.session_state["credentials"] = {
+                "name": user_info.get("name"),
+                "email": user_info.get("email"),
+                "picture": user_info.get("picture")
+            }
+
             # Clean up temp file
             if os.path.exists("temp_credentials.json"):
                 os.remove("temp_credentials.json")
 
-            return {
-                "name": user_info.get("name"),
-                "email": user_info.get("email"),
-                "picture": user_info.get("picture"),
-                "credentials": creds
-            }
+            return st.session_state["credentials"]
 
         except Exception as e:
             st.error(f"❌ Authentication failed: {e}")
             return None
+
+    return None
