@@ -72,6 +72,20 @@ st.markdown("""
         pointer-events: none;
         z-index: -1;
     }
+        /* Hide main menu during authentication */
+.stApp[data-auth="false"] #MainMenu {
+    visibility: hidden !important;
+}
+
+/* Show loading state during auth transition */
+.auth-loading {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 200px;
+    font-size: 1.2rem;
+    color: #10a37f;
+}
     
     /* Chat container with glassmorphism effect */
     .chat-container {
@@ -777,29 +791,48 @@ def create_sample_questions():
     return questions_html
 
 def main():
+    def initialize_session_state():
+        """Initialize all session state variables"""
+        if 'chatbot' not in st.session_state:
+            st.session_state.chatbot = EnhancedChatJee()
+    
+        if 'messages' not in st.session_state:
+            st.session_state.messages = []
+    
+        if 'pdf_uploaded' not in st.session_state:
+            st.session_state.pdf_uploaded = False
+    
+        if 'processing' not in st.session_state:
+            st.session_state.processing = False
+    
+        if 'authentication_complete' not in st.session_state:
+            st.session_state.authentication_complete = False
+    initialize_session_state()
+    
+    # Handle authentication
     user_info = authenticate_user_manual()
-    if user_info:
-        st.sidebar.success(f"👋 Hello, {user_info['name']}!")
-        st.sidebar.image(user_info['picture'], width=80)
-        st.sidebar.write(f"📧 {user_info['email']}")
     
-        st.image(user_info["picture"], width=50)
-    else:
+    if not user_info:
+        # Authentication UI is already shown in authenticate_user_manual()
+        # Just stop execution here
         st.stop()
-
-    # Initialize session state
-    if 'chatbot' not in st.session_state:
-        st.session_state.chatbot = EnhancedChatJee()
     
-    if 'messages' not in st.session_state:
-        st.session_state.messages = []
+    # Mark authentication as complete
+    st.session_state.authentication_complete = True
     
-    if 'pdf_uploaded' not in st.session_state:
-        st.session_state.pdf_uploaded = False
-    
-    if 'processing' not in st.session_state:
-        st.session_state.processing = False
-    
+    # Show user info in sidebar (clean version)
+    with st.sidebar:
+        st.success(f"👋 Hello, {user_info['name']}!")
+        if user_info.get('picture'):
+            st.image(user_info['picture'], width=80)
+        st.write(f"📧 {user_info['email']}")
+        
+        # Add logout button
+        if st.button("🚪 Logout"):
+            # Clear all session state
+            for key in list(st.session_state.keys()):
+                del st.session_state[key]
+            st.rerun()
     # Header with enhanced styling
     st.markdown("""
         <div class="header">
