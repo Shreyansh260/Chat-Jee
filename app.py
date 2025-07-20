@@ -778,10 +778,10 @@ def create_sample_questions():
 
 def main():
     user_info = authenticate_user_manual()
-    if user:
-        st.sidebar.success(f"👋 Hello, {user['name']}!")
-        st.sidebar.image(user['picture'], width=80)
-        st.sidebar.write(f"📧 {user['email']}")
+    if user_info:
+        st.sidebar.success(f"👋 Hello, {user_info['name']}!")
+        st.sidebar.image(user_info['picture'], width=80)
+        st.sidebar.write(f"📧 {user_info['email']}")
     
         st.image(user_info["picture"], width=50)
 
