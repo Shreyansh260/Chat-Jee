@@ -21,7 +21,7 @@ def authenticate_user_manual():
 
     # Step 3: Start OAuth flow
     flow = InstalledAppFlow.from_client_secrets_file("temp_credentials.json", SCOPES,redirect_uri='http://localhost')
-    auth_url, _ = flow.authorization_url(prompt='consent')
+    creds = flow.run_local_server(port=0, open_browser=False)
 
     # Step 4: Prompt user to visit auth URL
     st.info("🔐 Please authenticate with Google:")
