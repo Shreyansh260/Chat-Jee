@@ -835,7 +835,7 @@ def main():
             if st.button("🚪 Logout", key="main_logout", type="secondary", use_container_width=True):
                 # Method 1: Use the imported logout function
                 from AUTHENTICATOR import logout_user
-                logout_user() make good orientation
+                logout_user() 
                 
     # Header with enhanced styling
     st.markdown("""
