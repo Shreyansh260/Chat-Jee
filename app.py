@@ -7,6 +7,7 @@ import re
 from typing import Dict, List, Optional
 from datetime import datetime
 import logging
+
 from AUTHENTICATOR import authenticate_user_manual
 
 # Configure logging
@@ -776,14 +777,12 @@ def create_sample_questions():
     return questions_html
 
 def main():
-    user = authenticate_user_manual()
-    if user:
-        st.sidebar.success(f"👋 Hello, {user['name']}!")
-        st.sidebar.image(user['picture'], width=80)
-        st.sidebar.write(f"📧 {user['email']}")
-    else:
+    user_info = authenticate_user_manual()
+    if not user_info:
         st.stop()
-    
+    else:
+        st.success(f"✅ Welcome {user_info['name']} ({user_info['email']})")
+
     # Initialize session state
     if 'chatbot' not in st.session_state:
         st.session_state.chatbot = EnhancedChatJee()
