@@ -784,22 +784,24 @@ def main():
         st.sidebar.write(f"📧 {user_info['email']}")
     
         st.image(user_info["picture"], width=50)
+    else:
+        st.stop()
 
     # Initialize session state
-        if 'chatbot' not in st.session_state:
-            st.session_state.chatbot = EnhancedChatJee()
+    if 'chatbot' not in st.session_state:
+        st.session_state.chatbot = EnhancedChatJee()
     
-        if 'messages' not in st.session_state:
-            st.session_state.messages = []
+    if 'messages' not in st.session_state:
+        st.session_state.messages = []
     
-        if 'pdf_uploaded' not in st.session_state:
-            st.session_state.pdf_uploaded = False
+    if 'pdf_uploaded' not in st.session_state:
+        st.session_state.pdf_uploaded = False
     
-        if 'processing' not in st.session_state:
-            st.session_state.processing = False
+    if 'processing' not in st.session_state:
+        st.session_state.processing = False
     
     # Header with enhanced styling
-        st.markdown("""
+    st.markdown("""
         <div class="header">
         <h1>🎓 Chat Jee</h1>
         <p>Your AI-powered JEE preparation assistant with personalized learning</p>
