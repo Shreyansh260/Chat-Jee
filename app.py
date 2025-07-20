@@ -828,15 +828,12 @@ def main():
         st.write(f"📧 {user_info['email']}")
         st.markdown("---")
 
-        
-        # Add logout button
-        logout_col1, logout_col2 = st.columns([1, 1])
-        
-        with logout_col1:
-            if st.button("🚪 Logout", key="main_logout", type="secondary", use_container_width=True):
-                # Method 1: Use the imported logout function
-                from AUTHENTICATOR import logout_user
-                logout_user()
+        # Simply change your column ratio
+logout_col1, logout_col2, logout_col3 = st.columns([2, 1, 1])
+with logout_col3:  # Use the rightmost column
+    if st.button("🚪 Logout", key="main_logout", type="secondary", use_container_width=True):
+        from AUTHENTICATOR import logout_user
+        logout_user()
                 
     # Header with enhanced styling
     st.markdown("""
