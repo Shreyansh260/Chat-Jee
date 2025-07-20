@@ -20,7 +20,7 @@ def authenticate_user_manual():
         json.dump(credentials_dict, f)
 
     # Step 3: Start OAuth flow
-    flow = InstalledAppFlow.from_client_secrets_file("temp_credentials.json", SCOPES)
+    flow = InstalledAppFlow.from_client_secrets_file("temp_credentials.json", SCOPES,redirect_uri='http://localhost')
     auth_url, _ = flow.authorization_url(prompt='consent')
 
     # Step 4: Prompt user to visit auth URL
