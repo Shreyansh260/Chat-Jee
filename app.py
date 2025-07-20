@@ -778,29 +778,29 @@ def create_sample_questions():
 
 def main():
     user_info = authenticate_user_manual()
-    if not user_info:
-        st.stop()
-    else:
-        st.success(f"✅ Welcome {user_info['name']} ({user_info['email']})")
+    if user:
+        st.sidebar.success(f"👋 Hello, {user['name']}!")
+        st.sidebar.image(user['picture'], width=80)
+        st.sidebar.write(f"📧 {user['email']}")
     
-    st.image(user_info["picture"], width=50)
+        st.image(user_info["picture"], width=50)
 
     # Initialize session state
-    if 'chatbot' not in st.session_state:
-        st.session_state.chatbot = EnhancedChatJee()
+        if 'chatbot' not in st.session_state:
+            st.session_state.chatbot = EnhancedChatJee()
     
-    if 'messages' not in st.session_state:
-        st.session_state.messages = []
+        if 'messages' not in st.session_state:
+            st.session_state.messages = []
     
-    if 'pdf_uploaded' not in st.session_state:
-        st.session_state.pdf_uploaded = False
+        if 'pdf_uploaded' not in st.session_state:
+            st.session_state.pdf_uploaded = False
     
-    if 'processing' not in st.session_state:
-        st.session_state.processing = False
+        if 'processing' not in st.session_state:
+            st.session_state.processing = False
     
     # Header with enhanced styling
-    st.markdown("""
-    <div class="header">
+        st.markdown("""
+        <div class="header">
         <h1>🎓 Chat Jee</h1>
         <p>Your AI-powered JEE preparation assistant with personalized learning</p>
     </div>
@@ -1139,6 +1139,7 @@ I encountered an unexpected error: `{str(e)}`
         });
     </script>
     """, unsafe_allow_html=True)
+    
 
 if __name__ == "__main__":
     try:
