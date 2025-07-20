@@ -829,7 +829,7 @@ def main():
         st.markdown("---")
 
         # Add logout button
-        logout_col1, logout_col2 = st.columns([1, 2])
+        logout_col1, logout_col2 = st.columns([1, 0])
 
         with logout_col1:
             if st.button("🚪 Logout", key="main_logout", type="secondary", use_container_width=True):
