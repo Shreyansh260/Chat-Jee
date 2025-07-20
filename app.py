@@ -826,13 +826,18 @@ def main():
         if user_info.get('picture'):
             st.image(user_info['picture'], width=80)
         st.write(f"📧 {user_info['email']}")
+        st.markdown("---")
+
         
         # Add logout button
-        if st.button("🚪 Logout"):
-            # Clear all session state
-            for key in list(st.session_state.keys()):
-                del st.session_state[key]
-            st.rerun()
+        logout_col1, logout_col2 = st.columns([1, 1])
+        
+        with logout_col1:
+            if st.button("🚪 Logout", key="main_logout", type="secondary", use_container_width=True):
+                # Method 1: Use the imported logout function
+                from AUTHENTICATOR import logout_user
+                logout_user()
+                
     # Header with enhanced styling
     st.markdown("""
         <div class="header">
